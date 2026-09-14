@@ -24,12 +24,57 @@
       const client = createClient(values.url, values.anonKey);
       window.NovelRead.supabase = client;
       window.dispatchEvent(new CustomEvent('novelread:connected', { detail: client }));
+      await updateAccountStatus(client);
       await hydrateFromSupabase(client);
       return client;
     } catch (error) {
       window.NovelRead.backendError = error;
       return null;
     }
+  }
+
+  function createAccountStatus() {
+    const actions = document.querySelector('.header-actions');
+    if (!actions || actions.querySelector('[data-account-status]')) return;
+    const link = document.createElement('a');
+    link.className = 'account-status';
+    link.dataset.accountStatus = 'true';
+    link.href = 'account.html';
+    link.title = 'Reader account';
+    link.innerHTML = '<span class="account-avatar guest">○</span><span class="status-label">Sign in</span>';
+    actions.prepend(link);
+  }
+
+  async function updateAccountStatus(client) {
+    createAccountStatus();
+    const link = document.querySelector('[data-account-status]');
+    if (!link) return;
+    let user = null;
+    let profile = null;
+    if (client) {
+      const session = await client.auth.getSession();
+      user = session.data.session?.user || null;
+      if (user) {
+        const result = await client.from('reader_profiles').select('display_name,is_author').eq('id', user.id).maybeSingle();
+        profile = result.data;
+      }
+    }
+    if (!user && getIdentity()) {
+      link.href = 'account.html';
+      link.title = 'Reader account';
+      link.innerHTML = `<span class="account-avatar">${escapeHtml(getIdentity().name.slice(0, 1).toUpperCase())}</span><span class="status-label">${escapeHtml(getIdentity().name)}</span>`;
+      return;
+    }
+    if (!user) {
+      link.href = 'account.html';
+      link.title = 'Not signed in — open reader account';
+      link.innerHTML = '<span class="account-avatar guest">○</span><span class="status-label">Sign in</span>';
+      return;
+    }
+    const name = profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'Reader';
+    link.href = profile?.is_author ? 'admin.html' : 'account.html';
+    link.title = profile?.is_author ? 'Author account' : 'Reader account';
+    link.innerHTML = `<span class="account-avatar signed-in">${escapeHtml(name.slice(0, 1).toUpperCase())}</span><span class="status-label">${escapeHtml(name)}</span>`;
   }
 
   async function hydrateFromSupabase(client) {
@@ -98,9 +143,9 @@
 
   async function renderLiveStudio(client) {
     const { data: { user } } = await client.auth.getUser();
-    if (!user) { toast('Author sign-in is required for the studio.'); return; }
+    if (!user) { toast('Author sign-in is required for the studio.'); setTimeout(() => { location.href = 'author.html'; }, 900); return; }
     const { data: profile } = await client.from('reader_profiles').select('is_author').eq('id', user.id).maybeSingle();
-    if (!profile?.is_author) { toast('This account is not marked as the author.'); return; }
+    if (!profile?.is_author) { toast('This account is not marked as the author.'); setTimeout(() => { location.href = 'author.html'; }, 900); return; }
     const { data: books } = await client.from('books').select('title,status,updated_at').order('updated_at', { ascending: false });
     if (books?.length) document.querySelectorAll('.manuscript-row').forEach((row, index) => { const book = books[index]; if (book) row.querySelector('strong').textContent = book.title; });
   }
@@ -113,6 +158,7 @@
     document.querySelectorAll('[data-signout]').forEach((button) => button.addEventListener('click', async () => { if (window.NovelRead.supabase) await window.NovelRead.supabase.auth.signOut(); const state = readState(); delete state.identity; writeState(state); location.reload(); }));
     document.querySelectorAll('[data-theme]').forEach((button) => button.addEventListener('click', () => { document.body.classList.toggle('dark-reader'); localStorage.setItem('novelread-theme', document.body.classList.contains('dark-reader') ? 'dark' : 'light'); }));
     if (localStorage.getItem('novelread-theme') === 'dark') document.body.classList.add('dark-reader');
+    createAccountStatus();
     connectBackend();
   });
 })();
