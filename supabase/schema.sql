@@ -110,21 +110,18 @@ create policy "author manages books" on public.books for all using (exists (sele
 create policy "author manages chapters" on public.chapters for all using (exists (select 1 from public.reader_profiles where id = auth.uid() and is_author));
 create policy "author manages backups" on public.backup_exports for all using (exists (select 1 from public.reader_profiles where id = auth.uid() and is_author));
 
-insert into public.books (slug, title, type, synopsis, cover_class, published, status)
-values ('low-tide', 'The House at Low Tide', 'Novel', 'A woman returns to the island she left behind and finds the sea has been keeping careful records.', 'cover-tide', true, 'published')
+insert into public.books (slug, title, type, synopsis, cover_class, content_warnings, published, status)
+values ('super-interesting', 'Super Interesting', 'Novel', 'Sven Kruse has lost his nobility, his savings, and any hope that the law will protect his family. When a stolen magic potion draws danger to his door, survival becomes a matter of wit.', 'cover-tide', array['Fantasy violence', 'Threats', 'Mature themes'], true, 'published')
 on conflict (slug) do nothing;
 
-insert into public.chapters (book_id, number, title, body_markdown, status, published_at)
-select id, 1, 'Salt in the walls', 'The first thing I noticed when I came home was the salt.\n\nIt had gathered in the corners of the windows, in the seams of the kitchen tiles, along the brass handle of the front door. It made a pale map of the house, a record of all the years I had spent away.\n\nOutside, the tide was low enough to show the black ribs of the reef.', 'published', now()
-from public.books where slug = 'low-tide'
-on conflict (book_id, number) do nothing;
-
-insert into public.chapters (book_id, number, title, body_markdown, status, published_at)
-select id, 2, 'The path through the glass', 'By noon, the house had warmed enough to start remembering.\n\nA sound moved through the walls: not a creak, not exactly, but the soft drag of something heavy being carried from one room to another.', 'published', now()
-from public.books where slug = 'low-tide'
-on conflict (book_id, number) do nothing;
-
-insert into public.chapters (book_id, number, title, body_markdown, status, published_at)
-select id, 3, 'The tide leaves its mark', 'By morning, the sea had moved three feet inland.\n\nWith it came a door no one remembered building.', 'published', now()
-from public.books where slug = 'low-tide'
+insert into public.chapters (book_id, number, title, status, published_at)
+select id, number, title, 'published', now()
+from public.books cross join (values
+  (1, 'Nearer, Yet Farther'),
+  (2, 'Even Justice Has a Price'),
+  (3, 'Veiled Intentions'),
+  (4, 'Entrapment'),
+  (5, 'Redemption')
+) as manuscript(number, title)
+where books.slug = 'super-interesting'
 on conflict (book_id, number) do nothing;

@@ -18,6 +18,7 @@
       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
       const values = config.default || window.SUPABASE_CONFIG;
       if (!values?.url || values.url.includes('YOUR_PROJECT') || !values.anonKey || values.anonKey.includes('YOUR_PUBLIC')) {
+        await hydrateFromLocalManuscript();
         if (location.pathname.endsWith('account.html')) toast('Supabase is not connected. Add your real project URL and anon key to supabase-config.js.');
         return null;
       }
@@ -29,9 +30,44 @@
       return client;
     } catch (error) {
       window.NovelRead.backendError = error;
+      await hydrateFromLocalManuscript();
       return null;
     }
   }
+
+  async function hydrateFromLocalManuscript() {
+    const page = location.pathname.split('/').pop() || 'index.html';
+    if (page !== 'read.html') return;
+    const params = new URLSearchParams(location.search);
+    const book = NOVELREAD.books.find((item) => item.id === params.get('book')) || NOVELREAD.books[0];
+    const chapters = NOVELREAD.chapters.filter((item) => item.bookId === book.id);
+    const number = Number(params.get('chapter')) || 1;
+    const chapter = chapters.find((item) => item.number === number) || chapters[0];
+    if (!chapter) return;
+    try {
+      const markdown = await loadLocalChapter(chapter.number);
+      if (!markdown) return;
+      document.querySelector('#bookType').textContent = `${book.type} · ${book.status}`;
+      document.querySelector('#bookTitle').textContent = book.title;
+      document.querySelector('#bookSynopsis').textContent = book.synopsis;
+      document.querySelector('#warnings').innerHTML = `<div class="warning-box"><span>Content notes</span>${book.warnings.join(' · ')}</div>`;
+      document.querySelector('#toc').innerHTML = chapters.map((item) => `<li class="${item.id === chapter.id ? 'selected' : ''}"><a href="?book=${book.id}&chapter=${item.number}">Chapter ${String(item.number).padStart(2, '0')}<strong>${escapeHtml(item.title)}</strong></a></li>`).join('');
+      document.querySelector('#progressLabel').textContent = `${book.title} · ${chapter.number} / ${chapters.length}`;
+      const paragraphs = markdown.replace(/^---[\s\S]*?---\s*/, '').split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+      document.querySelector('#chapterContent').innerHTML = `<p class="eyebrow">Chapter ${String(chapter.number).padStart(2, '0')}</p><h2>${escapeHtml(chapter.title)}</h2>${paragraphs.map((paragraph, index) => `<p class="${index === 0 ? 'dropcap' : ''}">${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`).join('')}`;
+      document.querySelector('#prevChapter').onclick = () => localNavigate(book.id, chapters, chapter.number - 1);
+      document.querySelector('#nextChapter').onclick = () => localNavigate(book.id, chapters, chapter.number + 1);
+    } catch (error) { toast('The manuscript file could not be loaded.'); }
+  }
+
+  async function loadLocalChapter(number) {
+    const chapter = NOVELREAD.chapters.find((item) => item.number === number);
+    if (!chapter?.file) return '';
+    const response = await fetch(`Super Interesting/${encodeURIComponent(chapter.file)}`);
+    return response.ok ? response.text() : '';
+  }
+
+  function localNavigate(bookId, chapters, number) { if (chapters.some((item) => item.number === number)) location.href = `read.html?book=${bookId}&chapter=${number}`; else toast('You reached the end of this book.'); }
 
   function createAccountStatus() {
     const actions = document.querySelector('.header-actions');
@@ -97,12 +133,12 @@
     const slug = new URLSearchParams(location.search).get('book');
     if (!slug) return;
     const { data: book } = await client.from('books').select('*').eq('slug', slug).eq('published', true).maybeSingle();
-    if (!book) return;
+    if (!book) { await hydrateFromLocalManuscript(); return; }
     const { data: chapters } = await client.from('chapters').select('*').eq('book_id', book.id).eq('status', 'published').order('number');
-    if (!chapters?.length) return;
+    if (!chapters?.length) { await hydrateFromLocalManuscript(); return; }
     const number = Number(new URLSearchParams(location.search).get('chapter')) || 1;
     const chapter = chapters.find((item) => item.number === number) || chapters[0];
-    const text = chapter.body_markdown || '';
+    const text = chapter.body_markdown || await loadLocalChapter(chapter.number);
     document.querySelector('#bookType').textContent = `${book.type || 'Book'} · Published`;
     document.querySelector('#bookTitle').textContent = book.title;
     document.querySelector('#bookSynopsis').textContent = book.synopsis || '';
@@ -153,7 +189,7 @@
   function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (match) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[match])); }
   document.addEventListener('DOMContentLoaded', () => {
     document.title = document.title.replace(/Mara Ellery/g, 'Zraff Korazon');
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); const textNodes = []; while (walker.nextNode()) textNodes.push(walker.currentNode); textNodes.forEach((node) => { node.nodeValue = node.nodeValue.replace(/Mara Ellery|MARA ELLERY|Mara/g, (match) => match === 'MARA ELLERY' ? 'ZRAFF KORAZON' : 'Zraff Korazon'); });
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); const textNodes = []; while (walker.nextNode()) textNodes.push(walker.currentNode); textNodes.forEach((node) => { node.nodeValue = node.nodeValue.replace(/Mara Ellery|MARA ELLERY|Mara/g, (match) => match === 'MARA ELLERY' ? 'ZRAFF KORAZON' : 'Zraff Korazon').replace(/The House at Low Tide/g, 'Super Interesting').replace(/Small Weather/g, 'Nearer, Yet Farther').replace(/What the Moths Know/g, 'The story continues'); });
     document.querySelectorAll('[data-identity-name]').forEach((el) => { const identity = getIdentity(); el.textContent = identity ? identity.name : 'Anonymous reader'; });
     document.querySelectorAll('[data-signout]').forEach((button) => button.addEventListener('click', async () => { if (window.NovelRead.supabase) await window.NovelRead.supabase.auth.signOut(); const state = readState(); delete state.identity; writeState(state); location.reload(); }));
     document.querySelectorAll('[data-theme]').forEach((button) => button.addEventListener('click', () => { document.body.classList.toggle('dark-reader'); localStorage.setItem('novelread-theme', document.body.classList.contains('dark-reader') ? 'dark' : 'light'); }));
