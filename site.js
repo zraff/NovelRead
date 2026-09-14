@@ -17,7 +17,10 @@
       const config = await import('./supabase-config.js');
       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
       const values = config.default || window.SUPABASE_CONFIG;
-      if (!values?.url || values.url.includes('YOUR_PROJECT')) return null;
+      if (!values?.url || values.url.includes('YOUR_PROJECT') || !values.anonKey || values.anonKey.includes('YOUR_PUBLIC')) {
+        if (location.pathname.endsWith('account.html')) toast('Supabase is not connected. Add your real project URL and anon key to supabase-config.js.');
+        return null;
+      }
       const client = createClient(values.url, values.anonKey);
       window.NovelRead.supabase = client;
       window.dispatchEvent(new CustomEvent('novelread:connected', { detail: client }));
