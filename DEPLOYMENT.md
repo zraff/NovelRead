@@ -20,6 +20,7 @@ Cloudflare Pages supports custom domains and HTTPS on its free plan.
 4. Add these URLs under Authentication → URL Configuration:
    - Site URL: `https://YOUR_DOMAIN`
    - Redirect URL: `https://YOUR_DOMAIN/account.html`
+   - Remove any old `http://localhost:3000` entries when testing the production site.
 5. For the pseudonym/password flow, disable email confirmation. The pseudonym flow uses a private synthetic auth address and never exposes an email address.
 6. Copy `supabase-config.example.js` to `supabase-config.js`.
 7. Replace its URL and anon key with values from Supabase → Project Settings → API.

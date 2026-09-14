@@ -4,7 +4,7 @@ const toast = document.querySelector('#toast');
 const openReader = () => readerDialog.showModal();
 document.querySelectorAll('[data-open-reader]').forEach((button) => button.addEventListener('click', openReader));
 document.querySelector('#closeReader').addEventListener('click', () => readerDialog.close());
-document.querySelector('#readerLogin').addEventListener('click', () => loginDialog.showModal());
+document.querySelector('#readerLogin')?.addEventListener('click', () => loginDialog.showModal());
 document.querySelector('#closeLogin').addEventListener('click', () => loginDialog.close());
 document.querySelector('#themeToggle').addEventListener('click', () => {
   document.body.classList.toggle('dark-reader');
