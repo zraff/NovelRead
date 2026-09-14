@@ -7,3 +7,4 @@
 .chapter-panel #chapterContent p:not(.eyebrow){font-family:var(--sans);font-size:var(--reader-size,18px);line-height:1.9}
 .comments h2{font-family:var(--display);font-weight:700}
 .page-intro h1 em,.account-wrap h1 em,.studio-head h1 em{font-style:normal;color:var(--coral)}
+.legal-wrap{width:min(760px,calc(100% - 72px));margin:0 auto;padding:100px 0 130px}.legal-wrap h1{font:700 clamp(48px,7vw,74px)/1.05 var(--display);letter-spacing:-.04em;margin:0 0 10px}.legal-wrap h2{font:700 26px/1.2 var(--display);margin:42px 0 10px}.legal-wrap p{font-size:16px;line-height:1.8;color:var(--muted)}.legal-wrap .eyebrow{margin-bottom:18px}.legal-updated{font:11px var(--mono)!important;color:var(--sage)!important}@media(max-width:760px){.legal-wrap{width:calc(100% - 38px);padding:70px 0 90px}.legal-wrap h1{font-size:48px}.legal-wrap p{font-size:15px}}
